@@ -5,7 +5,6 @@ import requests
 from starlette.applications import Starlette
 from starlette.responses import JSONResponse
 from starlette.routing import Route, Mount
-from starlette.middleware.cors import CORSMiddleware
 from mcp.server.fastmcp import FastMCP
 
 
@@ -15,7 +14,7 @@ mcp = FastMCP(
     json_response=True,
 )
 
-BARK_KEY = os.getenv("BARK_KEY", "")
+BARK_KEY = os.getenv("BARK_KEY", "你的BarkKey")
 BARK_SERVER = os.getenv("BARK_SERVER", "https://api.day.app")
 
 
@@ -60,12 +59,4 @@ app = Starlette(
         Mount("/", app=mcp.streamable_http_app()),
     ],
     lifespan=lifespan,
-)
-
-app = CORSMiddleware(
-    app,
-    allow_origins=["*"],
-    allow_methods=["GET", "POST", "DELETE", "OPTIONS"],
-    allow_headers=["*"],
-    expose_headers=["Mcp-Session-Id"],
 )
