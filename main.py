@@ -1,6 +1,9 @@
 import os
 import requests
+from fastapi import FastAPI
 from mcp.server.fastmcp import FastMCP
+
+app = FastAPI()
 
 mcp = FastMCP("bark-notifier")
 
@@ -9,15 +12,14 @@ BARK_SERVER = os.getenv("BARK_SERVER", "https://api.day.app")
 
 
 @mcp.tool()
-def send_bark(title: str, body: str) -> str:
-    """Send a notification to iPhone via Bark."""
-    if not BARK_KEY:
-        return "BARK_KEY missing."
+async def send_bark(title: str, body: str) -> str:
+    """Send Bark notification"""
 
-    url = f"{BARK_SERVER}/{BARK_KEY}"
+    if not BARK_KEY:
+        return "Missing BARK_KEY"
 
     response = requests.post(
-        url,
+        f"{BARK_SERVER}/{BARK_KEY}",
         json={
             "title": title,
             "body": body,
@@ -29,10 +31,4 @@ def send_bark(title: str, body: str) -> str:
     return response.text
 
 
-if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 8000))
-    mcp.run(
-        transport="streamable-http",
-        host="0.0.0.0",
-        port=port
-    )
+app.mount("/mcp", mcp.sse_app())
