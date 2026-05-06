@@ -1,28 +1,27 @@
 import os
+import contextlib
 import requests
-from fastapi import FastAPI
+
+from starlette.applications import Starlette
+from starlette.responses import JSONResponse
+from starlette.routing import Route, Mount
+from starlette.middleware.cors import CORSMiddleware
 from mcp.server.fastmcp import FastMCP
 
-app = FastAPI()
 
-mcp = FastMCP("bark-notifier")
+mcp = FastMCP(
+    "bark-notifier",
+    stateless_http=True,
+    json_response=True,
+)
 
-BARK_KEY = os.getenv("BARK_KEY", "你的BarkKey")
+BARK_KEY = os.getenv("BARK_KEY", "")
 BARK_SERVER = os.getenv("BARK_SERVER", "https://api.day.app")
-
-
-@app.get("/")
-def health():
-    return {
-        "status": "ok",
-        "message": "Bark MCP server is running",
-        "sse_url": "/sse"
-    }
 
 
 @mcp.tool()
 async def send_bark(title: str, body: str) -> str:
-    """Send Bark notification to iPhone."""
+    """Send a Bark notification to iPhone."""
 
     if not BARK_KEY:
         return "Missing BARK_KEY"
@@ -40,4 +39,33 @@ async def send_bark(title: str, body: str) -> str:
     return response.text
 
 
-app.mount("/", mcp.sse_app())
+async def home(request):
+    return JSONResponse({
+        "status": "ok",
+        "message": "Bark MCP server is running",
+        "mcp_url": "/mcp",
+        "transport": "streamable-http"
+    })
+
+
+@contextlib.asynccontextmanager
+async def lifespan(app):
+    async with mcp.session_manager.run():
+        yield
+
+
+app = Starlette(
+    routes=[
+        Route("/", home),
+        Mount("/", app=mcp.streamable_http_app()),
+    ],
+    lifespan=lifespan,
+)
+
+app = CORSMiddleware(
+    app,
+    allow_origins=["*"],
+    allow_methods=["GET", "POST", "DELETE", "OPTIONS"],
+    allow_headers=["*"],
+    expose_headers=["Mcp-Session-Id"],
+)
