@@ -12,23 +12,27 @@ BARK_SERVER = os.getenv("BARK_SERVER", "https://api.day.app")
 def send_bark(title: str, body: str) -> str:
     """Send a notification to iPhone via Bark."""
     if not BARK_KEY:
-        return "BARK_KEY is not configured."
+        return "BARK_KEY missing."
 
     url = f"{BARK_SERVER}/{BARK_KEY}"
-    resp = requests.post(
+
+    response = requests.post(
         url,
         json={
             "title": title,
             "body": body,
-            "group": "AI",
+            "group": "AI"
         },
-        timeout=10,
+        timeout=10
     )
 
-    if resp.ok:
-        return "Notification sent successfully."
-    return f"Failed: {resp.status_code} {resp.text}"
+    return response.text
 
 
 if __name__ == "__main__":
-    mcp.run(transport="streamable-http")
+    port = int(os.environ.get("PORT", 8000))
+    mcp.run(
+        transport="streamable-http",
+        host="0.0.0.0",
+        port=port
+    )
