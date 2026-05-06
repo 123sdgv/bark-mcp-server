@@ -1,21 +1,37 @@
 import os
-import contextlib
 import requests
 
-from starlette.applications import Starlette
-from starlette.responses import JSONResponse
-from starlette.routing import Route, Mount
 from mcp.server.fastmcp import FastMCP
+from mcp.server.transport_security import TransportSecuritySettings
 
+BARK_KEY = os.getenv("BARK_KEY")
+BARK_SERVER = os.getenv("BARK_SERVER", "https://api.day.app")
+
+RAILWAY_HOST = "bark-mcp-server-production.up.railway.app"
 
 mcp = FastMCP(
     "bark-notifier",
     stateless_http=True,
     json_response=True,
+    host="0.0.0.0",
+    port=int(os.environ.get("PORT", "8000")),
+    path="/mcp",
+    transport_security=TransportSecuritySettings(
+        enable_dns_rebinding_protection=True,
+        allowed_hosts=[
+            RAILWAY_HOST,
+            f"{RAILWAY_HOST}:*",
+            "localhost:*",
+            "127.0.0.1:*",
+        ],
+        allowed_origins=[
+            f"https://{RAILWAY_HOST}",
+            f"https://{RAILWAY_HOST}:*",
+            "http://localhost:*",
+            "http://127.0.0.1:*",
+        ],
+    ),
 )
-
-BARK_KEY = os.getenv("BARK_KEY", "你的BarkKey")
-BARK_SERVER = os.getenv("BARK_SERVER", "https://api.day.app")
 
 
 @mcp.tool()
@@ -38,25 +54,5 @@ async def send_bark(title: str, body: str) -> str:
     return response.text
 
 
-async def home(request):
-    return JSONResponse({
-        "status": "ok",
-        "message": "Bark MCP server is running",
-        "mcp_url": "/mcp",
-        "transport": "streamable-http"
-    })
-
-
-@contextlib.asynccontextmanager
-async def lifespan(app):
-    async with mcp.session_manager.run():
-        yield
-
-
-app = Starlette(
-    routes=[
-        Route("/", home),
-        Mount("/", app=mcp.streamable_http_app()),
-    ],
-    lifespan=lifespan,
-)
+if __name__ == "__main__":
+    mcp.run(transport="streamable-http")
