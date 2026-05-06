@@ -7,13 +7,22 @@ app = FastAPI()
 
 mcp = FastMCP("bark-notifier")
 
-BARK_KEY = os.getenv("BARK_KEY")
+BARK_KEY = os.getenv("BARK_KEY", "你的BarkKey")
 BARK_SERVER = os.getenv("BARK_SERVER", "https://api.day.app")
+
+
+@app.get("/")
+def health():
+    return {
+        "status": "ok",
+        "message": "Bark MCP server is running",
+        "sse_url": "/sse"
+    }
 
 
 @mcp.tool()
 async def send_bark(title: str, body: str) -> str:
-    """Send Bark notification"""
+    """Send Bark notification to iPhone."""
 
     if not BARK_KEY:
         return "Missing BARK_KEY"
@@ -31,4 +40,4 @@ async def send_bark(title: str, body: str) -> str:
     return response.text
 
 
-app.mount("/mcp", mcp.sse_app())
+app.mount("/", mcp.sse_app())
